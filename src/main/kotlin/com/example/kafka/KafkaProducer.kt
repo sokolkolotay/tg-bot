@@ -20,21 +20,27 @@ class TaskKafkaProducer(
         put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers)
         put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer::class.java.name)
         put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer::class.java.name)
-        put(ProducerConfig.ACKS_CONFIG, "all")
+        put(ProducerConfig.ACKS_CONFIG, "1")
         put(ProducerConfig.RETRIES_CONFIG, 3)
     })
 
     fun sendTask(task: Task) {
         val json = Json.encodeToString(task)
         val record = ProducerRecord(topic, task.chatId.toString(), json)
-        producer.send(record) { metadata, exception ->
-            if (exception != null) {
-                logger.error("Ошибка отправки в Kafka: ${exception.message}")
-            } else {
-                logger.info("Задача отправлена в Kafka: topic=${metadata.topic()} partition=${metadata.partition()}")
-            }
+
+        try {
+            producer.send(record) { metadata, exception ->
+                if (exception != null) {
+                    logger.error("Ошибка отправки в Kafka: ${exception.message}")
+                } else {
+                    logger.info("Задача отправлена в Kafka: topic=${metadata.topic()} partition=${metadata.partition()}")
+                }
+            }.get(10, java.util.concurrent.TimeUnit.SECONDS) // ждём подтверждения с таймаутом
+
+        } catch (e: Exception) {
+            logger.error("Ошибка при отправке в Kafka", e)
+            throw e
         }
-        producer.flush()
     }
 
     fun close() {
