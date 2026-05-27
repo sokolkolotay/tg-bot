@@ -58,12 +58,12 @@ class TelegramBot(
 
             onCommand("addtask") { message ->
                 println("DEBUG: Получена команда /addtask, текст: '${message.content.text}'")
-                
-                val rawText = message.content.text
+                // Получаем полный текст из entities (Telegram обрезает команду)
+                val entities = message.content.textSources ?: emptyList()
+                val fullText = entities.joinToString("") { it.source }
+                val text = fullText.removePrefix("/addtask").trim()
 
-                val text = rawText
-                    .removePrefix("/addtask")
-                    .trim()
+                println("DEBUG: Полный текст: '$fullText', после удаления команды: '$text'")
 
                 if (text.isEmpty()) {
 
