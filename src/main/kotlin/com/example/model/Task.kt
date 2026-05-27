@@ -6,6 +6,5 @@ import kotlinx.serialization.Serializable
 data class Task(
     val title: String,
     val content: String,
-    val chatId: Long,
-    val createdAt: String = java.time.LocalDateTime.now().toString()
+    val chatId: Long
 )
