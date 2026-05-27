@@ -38,3 +38,4 @@ jobs:
             helm upgrade --install tg-bot ~/back-server-k8s/charts/tg-bot \
               --set image.tag=latest \
               --set image.repository=${{ secrets.DOCKER_USERNAME }}/tg-bot
+            kubectl rollout restart deployment tg-bot
