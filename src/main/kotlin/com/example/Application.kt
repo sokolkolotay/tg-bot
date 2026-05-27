@@ -5,6 +5,7 @@ import com.example.kafka.TaskKafkaProducer
 import com.example.service.HttpTaskService
 import io.ktor.client.*
 import io.ktor.client.engine.cio.*
+import io.ktor.serialization.kotlinx.json.json
 import kotlinx.coroutines.runBlocking
 
 fun main() = runBlocking {
@@ -26,7 +27,13 @@ fun main() = runBlocking {
         topic = kafkaTopic
     )
 
-    val httpClient = HttpClient(CIO)
+    val httpClient = HttpClient(CIO) {
+        install(io.ktor.client.plugins.contentnegotiation.ContentNegotiation) {
+            json(kotlinx.serialization.json.Json {
+                ignoreUnknownKeys = true
+            })
+        }
+    }
 
     val taskService = HttpTaskService(
         client = httpClient,

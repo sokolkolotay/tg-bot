@@ -30,4 +30,8 @@ dependencies {
 
     // Logging
     implementation("ch.qos.logback:logback-classic:1.4.14")
+
+    implementation("io.ktor:ktor-client-cio:3.1.3")
+    implementation("io.ktor:ktor-client-content-negotiation:3.1.3")
+    implementation("io.ktor:ktor-serialization-kotlinx-json:3.1.3")
 }
