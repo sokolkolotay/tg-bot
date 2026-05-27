@@ -28,17 +28,21 @@ class TaskKafkaProducer(
         val json = Json.encodeToString(task)
         val record = ProducerRecord(topic, task.chatId.toString(), json)
 
-        try {
-            producer.send(record) { metadata, exception ->
-                if (exception != null) {
-                    logger.error("Ошибка отправки в Kafka: ${exception.message}")
-                } else {
-                    logger.info("Задача отправлена в Kafka: topic=${metadata.topic()} partition=${metadata.partition()}")
-                }
-            }.get(10, java.util.concurrent.TimeUnit.SECONDS) // ждём подтверждения с таймаутом
+        println("DEBUG: Отправка в Kafka topic=$topic, chatId=${task.chatId}")
 
+        try {
+            val future = producer.send(record) { metadata, exception ->
+                if (exception != null) {
+                    println("ERROR: ${exception.message}")
+                } else {
+                    println("OK: topic=${metadata.topic()} partition=${metadata.partition()}")
+                }
+            }
+            println("DEBUG: Ожидание подтверждения...")
+            future.get(10, java.util.concurrent.TimeUnit.SECONDS)
+            println("DEBUG: Подтверждение получено")
         } catch (e: Exception) {
-            logger.error("Ошибка при отправке в Kafka", e)
+            println("EXCEPTION: ${e.javaClass.simpleName} - ${e.message}")
             throw e
         }
     }
