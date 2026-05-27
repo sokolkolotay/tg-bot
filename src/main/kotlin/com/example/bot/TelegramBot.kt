@@ -57,7 +57,8 @@ class TelegramBot(
             }
 
             onCommand("addtask") { message ->
-
+                println("DEBUG: Получена команда /addtask, текст: '${message.content.text}'")
+                
                 val rawText = message.content.text
 
                 val text = rawText
