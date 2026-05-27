@@ -57,13 +57,19 @@ class TelegramBot(
             }
 
             onCommand("addtask") { message ->
-                println("DEBUG: Получена команда /addtask, текст: '${message.content.text}'")
-                // Получаем полный текст из entities (Telegram обрезает команду)
-                val entities = message.content.textSources ?: emptyList()
-                val fullText = entities.joinToString("") { it.source }
-                val text = fullText.removePrefix("/addtask").trim()
+                println("DEBUG: message.content.text = '${message.content.text}'")
+                println("DEBUG: message.content.textSources = ${message.content.textSources}")
 
-                println("DEBUG: Полный текст: '$fullText', после удаления команды: '$text'")
+                val sources = message.content.textSources ?: emptyList()
+                println("DEBUG: sources count = ${sources.size}")
+                sources.forEachIndexed { i, source ->
+                    println("DEBUG: source[$i] = '${source.source}'")
+                }
+
+                // Пробуем получить текст напрямую из исходного сообщения
+                val rawText = message.content.text
+                val text = rawText.removePrefix("/addtask").trim()
+                println("DEBUG: текст после обработки: '$text'")
 
                 if (text.isEmpty()) {
 
