@@ -1,12 +1,12 @@
 package com.example.bot
 
 import com.example.kafka.TaskKafkaProducer
-import com.example.service.TaskService
 import com.example.model.Task
+import com.example.service.TaskService
 import dev.inmo.tgbotapi.extensions.api.bot.getMe
 import dev.inmo.tgbotapi.extensions.api.send.sendTextMessage
 import dev.inmo.tgbotapi.extensions.behaviour_builder.telegramBotWithBehaviourAndLongPolling
-import dev.inmo.tgbotapi.extensions.behaviour_builder.triggers_handling.onCommand
+import dev.inmo.tgbotapi.extensions.behaviour_builder.triggers_handling.onText
 import kotlinx.coroutines.CoroutineScope
 
 class TelegramBot(
@@ -21,176 +21,140 @@ class TelegramBot(
         telegramBotWithBehaviourAndLongPolling(token, scope) {
 
             val me = getMe()
-
             println("Бот запущен: @${me.username?.username}")
 
-            onCommand("start") { message ->
+            onText { message ->
+                val text = message.content.text.trim()
+                println("DEBUG: получено сообщение: '$text'")
 
-                sendTextMessage(
-                    message.chat,
-                    """
-                    👋 Привет! Я бот для управления задачами
-                    
-                    Доступные команды:
-                    
-                    /addtask — создать задачу
-                    /tasks — список задач
-                    /help — помощь
-                    """.trimIndent()
-                )
-            }
-
-            onCommand("help") { message ->
-
-                sendTextMessage(
-                    message.chat,
-                    """
-                    📌 Формат создания задачи:
-                    
-                    /addtask Заголовок | Описание
-                    
-                    Пример:
-                    
-                    /addtask Купить масло | Заехать на заправку
-                    """.trimIndent()
-                )
-            }
-
-            onCommand("addtask") { message ->
-                println("DEBUG: message.content.text = '${message.content.text}'")
-                println("DEBUG: message.content.textSources = ${message.content.textSources}")
-
-                val sources = message.content.textSources ?: emptyList()
-                println("DEBUG: sources count = ${sources.size}")
-                sources.forEachIndexed { i, source ->
-                    println("DEBUG: source[$i] = '${source.source}'")
-                }
-
-                // Пробуем получить текст напрямую из исходного сообщения
-                val rawText = message.content.text
-                val text = rawText.removePrefix("/addtask").trim()
-                println("DEBUG: текст после обработки: '$text'")
-
-                if (text.isEmpty()) {
-
-                    sendTextMessage(
-                        message.chat,
-                        """
-                        📌 Формат создания задачи:
-                        
-                        /addtask Заголовок | Описание
-                        
-                        Пример:
-                        
-                        /addtask Купить масло | Заехать на заправку
-                        """.trimIndent()
-                    )
-
-                    return@onCommand
-                }
-
-                val parts = text.split("|")
-                    .map { it.trim() }
-
-                val title = parts.getOrNull(0).orEmpty()
-                val content = parts.getOrNull(1).orEmpty()
-
-                if (title.isBlank()) {
-
-                    sendTextMessage(
-                        message.chat,
-                        "❌ Заголовок задачи не может быть пустым"
-                    )
-
-                    return@onCommand
-                }
-
-                val task = Task(
-                    title = title,
-                    content = content,
-                    chatId = message.chat.id.chatId.long
-                )
-
-                try {
-
-                    kafkaProducer.sendTask(task)
-
-                    sendTextMessage(
-                        message.chat,
-                        """
-                        ✅ Заметка успешно создана
-                        
-                        📌 $title
-                        📝 $content
-                        """.trimIndent()
-                    )
-
-                } catch (e: Exception) {
-
-                    e.printStackTrace()
-
-                    sendTextMessage(
-                        message.chat,
-                        """
-                        ❌ Не удалось создать заметку
-                        
-                        Возникли ошибки.
-                        Обратитесь к администратору.
-                        """.trimIndent()
-                    )
-                }
-            }
-
-            onCommand("tasks") { message ->
-
-                try {
-
-                    val tasks = taskService.getTasks(
-                        message.chat.id.chatId.long
-                    )
-
-                    if (tasks.isEmpty()) {
-
+                when {
+                    text.startsWith("/start") -> {
                         sendTextMessage(
                             message.chat,
-                            "📭 У вас пока нет задач"
+                            """
+                            👋 Привет! Я бот для управления задачами
+                            
+                            Доступные команды:
+                            /addtask Заголовок | Описание — создать задачу
+                            /tasks — список всех задач
+                            /help — помощь
+                            """.trimIndent()
                         )
-
-                        return@onCommand
                     }
 
-                    val response = buildString {
+                    text.startsWith("/help") -> {
+                        sendTextMessage(
+                            message.chat,
+                            """
+                            📌 Формат создания задачи:
+                            
+                            /addtask Заголовок | Описание
+                            
+                            Пример:
+                            /addtask Купить масло | Заехать на заправку
+                            """.trimIndent()
+                        )
+                    }
 
-                        appendLine("📋 Ваши задачи:")
-                        appendLine()
+                    text.startsWith("/addtask") -> {
+                        val taskText = text.removePrefix("/addtask").trim()
+                        println("DEBUG: addtask текст: '$taskText'")
 
-                        tasks.forEachIndexed { index, task ->
+                        if (taskText.isEmpty()) {
+                            sendTextMessage(
+                                message.chat,
+                                """
+                                📌 Укажи задачу в формате:
+                                /addtask Заголовок | Описание
+                                
+                                Пример:
+                                /addtask Купить масло | Заехать на заправку
+                                """.trimIndent()
+                            )
+                            return@onText
+                        }
 
-                            appendLine("${index + 1}. ${task.title}")
+                        val parts = taskText.split("|").map { it.trim() }
+                        val title = parts.getOrNull(0).orEmpty()
+                        val content = parts.getOrNull(1).orEmpty()
 
-                            if (task.content.isNotBlank()) {
-                                appendLine("📝 ${task.content}")
-                            }
+                        if (title.isBlank()) {
+                            sendTextMessage(
+                                message.chat,
+                                "❌ Заголовок задачи не может быть пустым"
+                            )
+                            return@onText
+                        }
 
-                            appendLine()
+                        val task = Task(
+                            title = title,
+                            content = content,
+                            chatId = message.chat.id.chatId.long
+                        )
+
+                        try {
+                            kafkaProducer.sendTask(task)
+                            println("DEBUG: задача отправлена в Kafka: $title")
+                            sendTextMessage(
+                                message.chat,
+                                """
+                                ✅ Заметка успешно создана!
+                                
+                                📌 $title
+                                📝 $content
+                                """.trimIndent()
+                            )
+                        } catch (e: Exception) {
+                            println("DEBUG: ошибка Kafka: ${e.message}")
+                            e.printStackTrace()
+                            sendTextMessage(
+                                message.chat,
+                                """
+                                ❌ Не удалось создать заметку.
+                                Возникли ошибки. Обратитесь к администратору.
+                                """.trimIndent()
+                            )
                         }
                     }
 
-                    sendTextMessage(
-                        message.chat,
-                        response
-                    )
+                    text.startsWith("/tasks") -> {
+                        try {
+                            val tasks = taskService.getTasks(message.chat.id.chatId.long)
 
-                } catch (e: Exception) {
+                            if (tasks.isEmpty()) {
+                                sendTextMessage(
+                                    message.chat,
+                                    "📭 У вас пока нет задач"
+                                )
+                                return@onText
+                            }
 
-                    e.printStackTrace()
+                            val response = buildString {
+                                appendLine("📋 Ваши задачи:")
+                                appendLine()
+                                tasks.forEachIndexed { index, task ->
+                                    appendLine("${index + 1}. ${task.title}")
+                                    if (task.content.isNotBlank()) {
+                                        appendLine("   📝 ${task.content}")
+                                    }
+                                    appendLine()
+                                }
+                            }
 
-                    sendTextMessage(
-                        message.chat,
-                        "❌ Не удалось получить список задач"
-                    )
+                            sendTextMessage(message.chat, response)
+
+                        } catch (e: Exception) {
+                            println("DEBUG: ошибка получения задач: ${e.message}")
+                            e.printStackTrace()
+                            sendTextMessage(
+                                message.chat,
+                                "❌ Не удалось получить список задач"
+                            )
+                        }
+                    }
                 }
             }
+
         }.second.join()
     }
 }

@@ -22,6 +22,7 @@ class TaskKafkaProducer(
         put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer::class.java.name)
         put(ProducerConfig.ACKS_CONFIG, "1")
         put(ProducerConfig.RETRIES_CONFIG, 3)
+        put("enable.metrics.push", "false")
     })
 
     fun sendTask(task: Task) {
